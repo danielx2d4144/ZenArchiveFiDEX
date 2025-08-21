@@ -1,4 +1,5 @@
-import { ConnectWallet } from "@thirdweb/react";
+import { ConnectButton } from "thirdweb/react";
+import { client, chain } from "../utils/thirdweb";
 
 export default function Navbar() {
     return (
@@ -10,7 +11,7 @@ export default function Navbar() {
             margin: "10px",
         }}>
             <h1>DEX Tester</h1>
-            <ConnectWallet/>
+            <ConnectButton client={client} chain={chain} />
         </div>
     )
 }

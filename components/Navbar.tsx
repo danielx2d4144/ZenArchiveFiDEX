@@ -10,7 +10,7 @@ export default function Navbar() {
             justifyContent: "space-between",
             margin: "10px",
         }}>
-            <h1>DEX Tester</h1>
+            <h1>ZenArchiveFI DEX</h1>
             <ConnectButton client={client} chain={chain} />
         </div>
     )

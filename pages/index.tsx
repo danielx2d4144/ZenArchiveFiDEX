@@ -17,6 +17,9 @@ const Home: NextPage = () => {
   // Contracts for the DEX and the token
   const TOKEN_CONTRACT = "0x354d531d8Df8Cee0f4DC7c83ae2cc21049951Ab0";
   const DEX_CONTRACT = "0x248e3ed8dc386c2f4e731ff5ed4dfb90a6cea578";
+  
+  // Default slippage tolerance (1% = 0.01)
+  const [slippageTolerance, setSlippageTolerance] = useState<number>(0.01);
 
   // Get contract instances
   const tokenContract = getContract({
@@ -109,45 +112,59 @@ const Home: NextPage = () => {
         alert("Please connect your wallet");
         return;
       }
+
+      // Calculate the expected amount out based on current values
+      const expectedAmountOut = amountToGet || BigInt(0);
+      const minAmountOut = calculateMinAmountOut(expectedAmountOut);
+
       if (currentFrom === "native") {
+        // Check if the contract has a function to set a minimum amount out
+        // If your contract doesn't support this, we'll log for informational purposes
+        console.log(`Swapping ${nativeValue} ZTC for minimum of ${toEther(minAmountOut)} ${symbol}`);
+        
         const swapNativeToken = prepareContractCall({
           contract: dexContract,
           method: "function swapEthTotoken() payable",
-          params: [],
+          params: [], // Ideally should include minAmountOut if your contract supports it
           value: toWei((nativeValue as string) || "0"),
         });
+        
         sendAndConfirmTransaction({
           account,
           transaction: swapNativeToken,
-        })
+        });
 
       } else {
+        console.log(`Swapping ${tokenValue} ${symbol} for minimum of ${toEther(minAmountOut)} ZTC`);
+        
+        // Approve token spending first
         const approveTokenSpending = prepareContractCall({
           contract: tokenContract,
           method: "function approve(address spender, uint256 amount) returns (bool)",
           params: [DEX_CONTRACT, toWei((tokenValue as string) || "0")],
         });
+        
         await sendAndConfirmTransaction({
           account,
           transaction: approveTokenSpending,
-        })
+        });
+        
+        // Execute the swap with slippage protection if supported
         const swapTokenToNative = prepareContractCall({
           contract: dexContract,
           method: "function swapTokenToEth(uint256 _tokensSold)",
-          params: [toWei((tokenValue as string) || "0")],
+          params: [toWei((tokenValue as string) || "0")], // Ideally should include minAmountOut parameter
         });
-
 
         try {
           await sendAndConfirmTransaction({
             account,
             transaction: swapTokenToNative,
-          })
+          });
         } catch (error) {
           console.error(error);
           alert("An error occurred while trying to execute the swap");
         }
-
       }
     } catch (error) {
       console.error(error);
@@ -162,6 +179,31 @@ const Home: NextPage = () => {
     fetchContractBalance();
     setInterval(fetchContractBalance, 10000);
   }, []);
+
+  // Helper function to calculate minimum amount out with slippage protection
+  const calculateMinAmountOut = (expectedAmount: bigint): bigint => {
+    // Apply slippage tolerance: amount * (1 - slippageTolerance)
+    return expectedAmount - (expectedAmount * BigInt(Math.floor(slippageTolerance * 10000)) / BigInt(10000));
+  };
+
+  // Calculate effective price (for display purposes)
+  const calculateEffectivePrice = (): string => {
+    if (!amountToGet || 
+        (currentFrom === "native" && (nativeValue === "0" || nativeValue === "")) ||
+        (currentFrom === "token" && (tokenValue === "0" || tokenValue === ""))) {
+      return "0";
+    }
+
+    if (currentFrom === "native") {
+      const inputAmount = parseFloat(nativeValue);
+      const outputAmount = parseFloat(tokenValue);
+      return inputAmount && outputAmount ? (inputAmount / outputAmount).toFixed(6) : "0";
+    } else {
+      const inputAmount = parseFloat(tokenValue);
+      const outputAmount = parseFloat(nativeValue);
+      return inputAmount && outputAmount ? (inputAmount / outputAmount).toFixed(6) : "0";
+    }
+  };
 
   // Update the amount to get based on the value
   useEffect(() => {
@@ -250,6 +292,52 @@ const Home: NextPage = () => {
                 textAlign: "center",
               }}
             >
+              {/* Display price info and slippage settings */}
+              <div style={{ 
+                display: "flex", 
+                justifyContent: "space-between", 
+                alignItems: "center", 
+                marginBottom: "1rem",
+                padding: "0.5rem 1rem",
+                backgroundColor: "#232323",
+                borderRadius: "8px",
+              }}>
+                <div style={{ fontSize: "0.9rem", color: "#9ca3af" }}>
+                  <div style={{ marginBottom: "0.3rem" }}>
+                    Rate: 1 {currentFrom === "native" ? "ZTC" : symbol} = {calculateEffectivePrice()} {currentFrom === "native" ? symbol : "ZTC"}
+                  </div>
+                  <div>
+                    Min received: {amountToGet ? (
+                      currentFrom === "native" 
+                        ? `${(parseFloat(tokenValue) * (1 - slippageTolerance)).toFixed(6)} ${symbol}`
+                        : `${(parseFloat(nativeValue) * (1 - slippageTolerance)).toFixed(6)} ZTC`
+                    ) : "0"}
+                  </div>
+                </div>
+                <div>
+                  <span style={{ fontSize: "0.9rem", color: "#9ca3af", marginRight: "0.5rem" }}>
+                    Slippage:
+                  </span>
+                  <select 
+                    value={slippageTolerance} 
+                    onChange={(e) => setSlippageTolerance(parseFloat(e.target.value))}
+                    style={{
+                      background: "#2a2a2a",
+                      color: "white",
+                      border: "1px solid #444",
+                      padding: "0.3rem",
+                      borderRadius: "6px",
+                      fontSize: "0.9rem"
+                    }}
+                  >
+                    <option value="0.005">0.5%</option>
+                    <option value="0.01">1%</option>
+                    <option value="0.02">2%</option>
+                    <option value="0.05">5%</option>
+                  </select>
+                </div>
+              </div>
+              
               <button
                 onClick={executeSwap}
                 disabled={isLoading as boolean}

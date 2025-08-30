@@ -1,3 +1,10 @@
+.main {
+  position: relative;
+  min-height: 100vh;
+  width: 100%;
+  /* Background is now managed in background.css */
+}
+
 .container {
   width: 100%;
   max-width: 1440px;
@@ -222,4 +229,15 @@
   margin-top: -17px;
   margin-bottom: -17px;
   z-index: 99;
+}
+
+/* Background image for the home page */
+.background {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: -1;
+  background: url('/images/library-bg.jpg') center center / cover no-repeat;
 }

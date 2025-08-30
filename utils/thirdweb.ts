@@ -11,8 +11,8 @@ const chain = defineChain({
   chainId: 8408,
   rpc: "https://zenchain-testnet.api.onfinality.io/public",
   nativeCurrency: {
-    name: "ZEN",
-    symbol: "ZEN",
+    name: "ZTC",
+    symbol: "ZTC",
     decimals: 18
   },
   name: "Zenchain Testnet",
